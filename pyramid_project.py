@@ -52,7 +52,7 @@ def main():
         # Move the next brick over one brick width along the row
             tl= tl + BRICK_WIDTH
             br = br + BRICK_WIDTH
-            if x/2 == float:
+            if x == is_even:
                 color = "red" 
             else:
                 color = "blue"
