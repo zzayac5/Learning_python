@@ -12,16 +12,19 @@ class Task:
     due: date | None = None
     category: str = ""
     est_min: int = 0               # estimated minutes
+    hard: bool = False              # New: hard vs soft deadline checkbox
 
     # for Treeview we expose a tuple representation
     def display(self) -> tuple[str, str, str, str, str]:
         status = "✅" if self.done else " "
         due_str = self.due.isoformat() if self.due else ""
+        hard_flag= "H" if self.hard else ""   # flag for hard vs soft deadline
         return (
             status,
             self.text,
             str(self.priority),
             due_str,
+            hard_flag,
             self.category or "",
         )
 
@@ -32,7 +35,7 @@ class TodoApp:
         # window
         self.root = root
         self.root.title("Advanced To‑Do")
-        self.root.geometry("700x500")
+        self.root.geometry("800x600")
         self.root.resizable(False, False)
 
         # master list
@@ -42,53 +45,61 @@ class TodoApp:
         input_frame = tk.LabelFrame(root, text="New Task")
         input_frame.pack(padx=10, pady=10, fill="x")
 
-        tk.Label(input_frame, text="Task").grid(row=0, column=0, sticky="e", padx=2, pady=2)
+        tk.Label(input_frame, text="Task").grid(row=0, column=0, sticky="e", padx=1, pady=2)
         self.entry_text = tk.Entry(input_frame, width=30)
-        self.entry_text.grid(row=0, column=1, sticky="w", padx=2, pady=2)
+        self.entry_text.grid(row=0, column=1, sticky="w", padx=1, pady=2)
 
         tk.Label(input_frame, text="Priority").grid(row=0, column=2, sticky="e", padx=2)
         self.priority_var = tk.IntVar(value=2)
         tk.Spinbox(
-            input_frame, from_=1, to=3, textvariable=self.priority_var, width=3
+            input_frame, from_=1, to=5, textvariable=self.priority_var, width=3
         ).grid(row=0, column=3, padx=2, pady=2)
 
-        tk.Label(input_frame, text="Due‑date (YYYY‑MM‑DD)").grid(row=1, column=0, sticky="e", padx=2)
+        tk.Label(input_frame, text="Due‑date (YYYY‑MM‑DD)").grid(row=1, column=0, sticky="e", padx=2)
         self.entry_due = tk.Entry(input_frame, width=15)
-        self.entry_due.grid(row=1, column=1, sticky="w", padx=2, pady=2)
+        self.entry_due.grid(row=1, column=1, sticky="w", padx=1, pady=2)
 
-        tk.Label(input_frame, text="Category").grid(row=1, column=2, sticky="e", padx=2)
+        self.hard_var = tk.BooleanVar(value=False)          #Hard vs Soft deadline evaluation feature addition
+        tk.Checkbutton(
+            input_frame,
+            text="Hard deadline",
+            variable=self.hard_var
+        ).grid(row=1, column=2, padx=1, sticky="w")
+
+        tk.Label(input_frame, text="Category").grid(row=1, column=3, sticky="e", padx=2)
         self.entry_cat = tk.Entry(input_frame, width=12)
-        self.entry_cat.grid(row=1, column=3, padx=2, pady=2)
+        self.entry_cat.grid(row=1, column=4, padx=2, pady=2)
 
-        tk.Label(input_frame, text="Est. Min").grid(row=2, column=0, sticky="e", padx=2)
+        tk.Label(input_frame, text="Est. Min").grid(row=2, column=0, sticky="e", padx=2)
         self.entry_est = tk.Entry(input_frame, width=6)
         self.entry_est.grid(row=2, column=1, sticky="w", padx=2, pady=2)
 
         tk.Button(
-            input_frame, text="Add Task", command=self.add_task
+            input_frame, text="Add Task", command=self.add_task
         ).grid(row=2, column=3, padx=2, pady=4, sticky="e")
 
         self.root.bind("<Return>", lambda e: self.add_task())
 
         # ── treeview display ───────────────────────────────────
-        cols = ("Status", "Task", "Pr", "Due", "Cat")
+        cols = ("Status", "Task", "Pr", "Due", "Hard", "Cat")
         self.tree = ttk.Treeview(root, columns=cols, show="headings", height=14)
-        for c, w in zip(cols, (60, 260, 40, 100, 100)):
+        for c, w in zip(cols, (60, 260, 40, 100, 50, 100)):
             self.tree.heading(c, text=c, command=lambda col=c: self.sort_by(col))
             self.tree.column(c, width=w, anchor="w")
         self.tree.pack(padx=10, pady=5)
+        self.tree.tag_configure("overdue", foreground="red")
 
         # add scrollbar
-        ttk.Scrollbar(root, orient="vertical", command=self.tree.yview).place(x=610, y=165, height=295)
+        ttk.Scrollbar(root, orient="vertical", command=self.tree.yview).place(x=690, y=170, height=255)
         self.tree.configure(yscrollcommand=lambda f, l: None)  # dummy; scrollbar handles it
 
         # ── action buttons ─────────────────────────────────────
         btn_frame = tk.Frame(root)
         btn_frame.pack(pady=5)
-        tk.Button(btn_frame, text="Toggle Complete", command=self.toggle_complete).grid(row=0, column=0, padx=5)
-        tk.Button(btn_frame, text="Delete Selected", command=self.delete_task).grid(row=0, column=1, padx=5)
-        tk.Button(btn_frame, text="Show Today", command=self.filter_today).grid(row=0, column=2, padx=5)
-        tk.Button(btn_frame, text="Show All", command=self.show_all).grid(row=0, column=3, padx=5)
+        tk.Button(btn_frame, text="Toggle Complete", command=self.toggle_complete).grid(row=0, column=0, padx=5)
+        tk.Button(btn_frame, text="Delete Selected", command=self.delete_task).grid(row=0, column=1, padx=5)
+        tk.Button(btn_frame, text="Show Today", command=self.filter_today).grid(row=0, column=2, padx=5)
+        tk.Button(btn_frame, text="Show All", command=self.show_all).grid(row=0, column=3, padx=5)
 
     # ── helpers ───────────────────────────────────────────────
     def parse_due(self, s: str) -> date | None:
@@ -102,8 +113,12 @@ class TodoApp:
 
     def refresh_tree(self, rows: list[Task] | None = None):
         self.tree.delete(*self.tree.get_children())
+        now = datetime.now().date()
         for t in (rows if rows is not None else self.tasks):
-            self.tree.insert("", "end", values=t.display())
+            tags = []
+            if t.due and t.due < now and not t.done:
+                tags.append("overdue")
+            self.tree.insert("", "end", values=t.display(), tags=tags)
 
     # ── CRUD ops ──────────────────────────────────────────────
     def add_task(self):
@@ -124,6 +139,7 @@ class TodoApp:
             due=due,
             category=self.entry_cat.get().strip(),
             est_min=est,
+            hard=self.hard_var.get()
         )
         self.tasks.append(task)
         self.refresh_tree()
@@ -134,6 +150,7 @@ class TodoApp:
         self.entry_cat.delete(0, tk.END)
         self.entry_est.delete(0, tk.END)
         self.priority_var.set(2)
+        self.hard_var.set(False)
 
     def current_index(self) -> int | None:
         sel = self.tree.selection()
@@ -169,6 +186,7 @@ class TodoApp:
             "Task": lambda t: t.text.lower(),
             "Pr": lambda t: t.priority,
             "Due": lambda t: t.due or date.max,
+            "Hard": lambda t: not t.hard,
             "Cat": lambda t: t.category.lower(),
         }
         self.tasks.sort(key=key_funcs[column_name])
